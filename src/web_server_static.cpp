@@ -29,20 +29,12 @@ struct StaticFile
 
 #define IS_ALIGNED(x)   (0 == ((uint32_t)(x) & 0x3))
 
-#ifdef WEB_SERVER_ROOT_PAGE_INDEX
-#define WEB_SERVER_INDEX_PAGE "index.html"
-#else
-#define WEB_SERVER_INDEX_PAGE "home.html"
-#endif
-
 // Pages
-static const char _HOME_PAGE[] PROGMEM = "/" WEB_SERVER_INDEX_PAGE;
+static const char _HOME_PAGE[] PROGMEM = "/home.html";
 #define HOME_PAGE FPSTR(_HOME_PAGE)
 
-#ifndef DISABLE_WIFI_PORTAL
 static const char _WIFI_PAGE[] PROGMEM = "/wifi_portal.html";
 #define WIFI_PAGE FPSTR(_WIFI_PAGE)
-#endif
 
 class StaticFileResponse: public MongooseHttpServerResponse
 {
@@ -58,12 +50,7 @@ static bool web_static_get_file(MongooseHttpServerRequest *request, StaticFile *
   // Remove the found uri
   String path = request->uri();
   if(path == "/") {
-    path = String(
-      #ifndef DISABLE_WIFI_PORTAL
-        net_wifi_mode_is_ap_only() ? WIFI_PAGE :
-      #endif
-      HOME_PAGE);
-
+    path = String(net.isWifiModeApOnly() ? WIFI_PAGE : HOME_PAGE);
   }
 
   DBUGF("Looking for %s", path.c_str());
@@ -88,7 +75,7 @@ bool web_static_handle(MongooseHttpServerRequest *request)
   dumpRequest(request);
 
   // Are we authenticated
-  if(!net_wifi_mode_is_ap_only() && www_username!="" &&
+  if(!net.isWifiModeApOnly() && www_username!="" &&
      false == request->authenticate(www_username, www_password)) {
     request->requestAuthentication(esp_hostname);
     return false;

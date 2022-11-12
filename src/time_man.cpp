@@ -69,13 +69,12 @@ unsigned long TimeManager::loop(MicroTasks::WakeReason reason)
 
   unsigned long ret = MicroTask.Infinate;
 
-  if(config_sntp_enabled() &&
-    NULL != _timeHost &&
-    _nextCheckTime > 0)
+  if(_nextCheckTime > 0)
   {
     int64_t delay = (int64_t)_nextCheckTime - (int64_t)millis();
 
-    if(net_is_connected() &&
+    if(config_sntp_enabled() &&
+      net.isConnected() &&
       false == _fetchingTime &&
       delay <= 0)
     {
@@ -101,7 +100,7 @@ unsigned long TimeManager::loop(MicroTasks::WakeReason reason)
     struct timeval utc_time;
     gettimeofday(&utc_time, NULL);
 
-    if(utc_time.tv_usec >= 999000)
+    if(utc_time.tv_usec >= 999500)
     {
       _setTheTime = false;
 
@@ -120,7 +119,7 @@ unsigned long TimeManager::loop(MicroTasks::WakeReason reason)
     {
       unsigned long msec = utc_time.tv_usec / 1000;
       DBUGVAR(msec);
-      unsigned long delay = msec < 998 ? 998 - msec : 0;
+      unsigned long delay = msec < 999 ? 999 - msec : 0;
       DBUGVAR(delay);
       if(delay < ret) {
         ret = delay;
