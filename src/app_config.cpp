@@ -115,8 +115,8 @@ ConfigOptDefenition<uint32_t> flagsOpt = ConfigOptDefenition<uint32_t>(flags, CO
 ConfigOpt *opts[] =
 {
 // Wifi Network Strings
-  new ConfigOptDefenition<String>(esid, "Freebox_damos1986", "ssid", "ws"),
-  new ConfigOptSecret(epass, "lepasswifidelamaison", "pass", "wp"),
+  new ConfigOptDefenition<String>(esid, "", "ssid", "ws"),
+  new ConfigOptSecret(epass, "", "pass", "wp"),
 
 // Language String
   new ConfigOptDefenition<String>(lang, "", "lang", "lan"),
