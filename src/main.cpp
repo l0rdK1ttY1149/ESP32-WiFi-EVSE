@@ -70,7 +70,7 @@ Scheduler scheduler(evse);
 ManualOverride manual(evse);
 DivertTask divert(evse);
 
-NetManagerTask net(lcd, ledManager);
+NetManagerTask net(lcd, ledManager, timeManager);
 
 RapiSender &rapiSender = evse.getSender();
 
