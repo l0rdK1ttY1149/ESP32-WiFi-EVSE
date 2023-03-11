@@ -43,6 +43,8 @@ void TimeManager::setHost(const char *host)
 
 void TimeManager::setup()
 {
+  config_set_timezone(time_zone);
+
   _sntp.onError([this](uint8_t err) {
     DBUGF("Got error %u", err);
     _fetchingTime = false;
@@ -53,6 +55,7 @@ void TimeManager::setup()
 
 unsigned long TimeManager::loop(MicroTasks::WakeReason reason)
 {
+#ifdef ENABLE_DEBUG
   DBUG("Time manager woke: ");
   DBUGLN(WakeReason_Scheduled == reason ? "WakeReason_Scheduled" :
          WakeReason_Event == reason ? "WakeReason_Event" :
@@ -60,53 +63,32 @@ unsigned long TimeManager::loop(MicroTasks::WakeReason reason)
          WakeReason_Manual == reason ? "WakeReason_Manual" :
          "UNKNOWN");
 
-  timeval utc_time;
-  gettimeofday(&utc_time, NULL);
-  tm local_time, gm_time;
-  localtime_r(&utc_time.tv_sec, &local_time);
-  gmtime_r(&utc_time.tv_sec, &gm_time);
-  DBUGF("Time now, Local: %s, UTC: %s, %s",
-    time_format_time(local_time).c_str(),
-    time_format_time(gm_time).c_str(),
-    getenv("TZ"));
+  if(!_setTheTime)
+  {
+    timeval utc_time;
+    gettimeofday(&utc_time, NULL);
+    tm local_time, gm_time;
+    localtime_r(&utc_time.tv_sec, &local_time);
+    gmtime_r(&utc_time.tv_sec, &gm_time);
+    const char *tz = getenv("TZ");
+    DBUGF("Time now, Local: %s, UTC: %s, %s",
+      time_format_time(local_time).c_str(),
+      time_format_time(gm_time).c_str(),
+      tz ? tz : "TZ not set");
+  }
 
-  DBUGVAR(_nextCheckTime);
-  DBUGVAR(_setTheTime);
+#endif
 
   unsigned long ret = MicroTask.Infinate;
 
-  if(_nextCheckTime > 0)
-  {
-    int64_t delay = (int64_t)_nextCheckTime - (int64_t)millis();
-
-    if(config_sntp_enabled() &&
-      net.isConnected() &&
-      false == _fetchingTime &&
-      delay <= 0)
-    {
-      _fetchingTime = true;
-      _nextCheckTime = 0;
-
-      DBUGF("Trying to get time from %s", _timeHost);
-      _sntp.getTime(_timeHost, [this](struct timeval newTime)
-      {
-        setTime(newTime, _timeHost);
-
-        _fetchingTime = false;
-        _nextCheckTime = millis() + TIME_POLL_TIME;
-        MicroTask.wakeTask(this);
-      });
-    } else {
-      ret = delay > 0 ? (unsigned long)delay : 0;
-    }
-  }
-
+  DBUGVAR(_setTheTime);
   if(_setTheTime)
   {
     struct timeval utc_time;
     gettimeofday(&utc_time, NULL);
 
-    if(utc_time.tv_usec >= 999500)
+    DBUGVAR(utc_time.tv_usec);
+    if(utc_time.tv_usec >= 999000)
     {
       _setTheTime = false;
 
@@ -125,11 +107,37 @@ unsigned long TimeManager::loop(MicroTasks::WakeReason reason)
     {
       unsigned long msec = utc_time.tv_usec / 1000;
       DBUGVAR(msec);
-      unsigned long delay = msec < 999 ? 999 - msec : 0;
+      unsigned long delay = msec < 998 ? 998 - msec : 0;
       DBUGVAR(delay);
-      if(delay < ret) {
-        ret = delay;
-      }
+      return delay;
+    }
+  }
+
+  DBUGVAR(_nextCheckTime);
+  if(config_sntp_enabled() &&
+    NULL != _timeHost &&
+    _nextCheckTime > 0)
+  {
+    int64_t delay = (int64_t)_nextCheckTime - (int64_t)millis();
+
+    if(net.isConnected() &&
+      false == _fetchingTime &&
+      delay <= 0)
+    {
+      _fetchingTime = true;
+      _nextCheckTime = 0;
+
+      DBUGF("Trying to get time from %s", _timeHost);
+      _sntp.getTime(_timeHost, [this](struct timeval newTime)
+      {
+        setTime(newTime, _timeHost);
+
+        _fetchingTime = false;
+        _nextCheckTime = millis() + TIME_POLL_TIME;
+        MicroTask.wakeTask(this);
+      });
+    } else {
+      ret = delay > 0 ? (unsigned long)delay : 0;
     }
   }
 
